@@ -135,6 +135,15 @@ public class Inode
     return retval;
   }
 
+  public static Inode getInode(int i)
+  {
+    if(i >= 0 & i < Inodes.size())
+    {
+      return Inodes.get(i);
+    }
+    return null;
+  }
+
   public static short allocateInode()
   {
     // add an item to the vector (replacing a null if there is one)

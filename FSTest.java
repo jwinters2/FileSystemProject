@@ -72,17 +72,39 @@ class FSTest extends Thread
         index++;
       }
     }
+    else if(target.toLowerCase().equals("readfile") || 
+            target.toLowerCase().equals("rf"))
+    {
+      Scanner in = new Scanner(System.in);
+      SysLib.cout("filename: ");
+      String filename = in.next();
+      SysLib.cout("    mode: ");
+      String mode = in.next();
+
+      SysLib.cout("opening file ...\n");
+      int fd = SysLib.open(filename,mode);
+      byte[] buffer = new byte[128];
+      SysLib.cout("reading from file ...\n");
+      SysLib.read(fd,buffer);
+
+      printData(buffer);
+    }
     SysLib.exit();
   }
 
   public static void printBlock(int b)
   {
-    String temp = "";
     byte[] buffer = new byte[Disk.blockSize];
     SysLib.cread(b,buffer);
+    printData(buffer);
+  }
+
+  public static void printData(byte[] buffer)
+  {
+    String temp = "";
 
     SysLib.cout(" -    0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
-    for(int i=0; i<Disk.blockSize; i+=16)
+    for(int i=0; i<buffer.length; i+=16)
     {
       if((i/16) < 16)
       {

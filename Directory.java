@@ -24,9 +24,9 @@ public class Directory
     }
   }
 
-  private int fd;           // the file descriptor for this file
-  private int maxFileCount; // maximum number of files we need to store
-  private TableEntry[] table;    // the hash table itself
+  private Inode inode;        // the inode for this file
+  private int maxFileCount;   // maximum number of files we need to store
+  private TableEntry[] table; // the hash table itself
 
   public Directory(int count)
   {
@@ -37,7 +37,8 @@ public class Directory
       table[i] = null;
     }
 
-    test();
+    //test();
+    inode = Inode.getInode(Inode.allocateInode());
   }
 
   private boolean iexists(String filename)
@@ -60,7 +61,7 @@ public class Directory
     return false;
   }
 
-  private short iretrieve(String filename,String mode)
+  public short iretrieve(String filename,String mode)
   {
     // find the contents of the table at filename's hash
     TableEntry current = table[hash(filename)];

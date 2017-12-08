@@ -177,8 +177,11 @@ case INTERRUPT_SOFTWARE: // System calls
             System.out.println("threadOS: caused read errors");
         return ERROR;
     }
-    return FileSystem.read( param, (byte[]) args );
-    //return ERROR;
+    if ( ( myTcb = scheduler.getMyTcb( ) ) != null )
+    {
+      return FileSystem.read( myTcb.getFtEnt(param) , (byte[]) args );
+    }
+    return ERROR;
     case WRITE:
     switch ( param ) {
     case STDIN:
@@ -199,23 +202,30 @@ case INTERRUPT_SOFTWARE: // System calls
     case CWRITE:  // to be implemented in assignment 4
     return cache.write( param, ( byte[] )args ) ? OK : ERROR;
     case CSYNC:   // to be implemented in assignment 4
-    cache.sync( );
-    return OK;
+      cache.sync( );
+      return OK;
     case CFLUSH:  // to be implemented in assignment 4
-    cache.flush( );
-    return OK;
+      cache.flush( );
+      return OK;
     case OPEN:    // to be implemented in project
-    return OK;
+      FileTableEntry f = FileSystem.open(((String[])args)[0],
+                                         ((String[])args)[1]);
+      if ( ( myTcb = scheduler.getMyTcb( ) ) != null )
+      {
+        return myTcb.getFd(f);
+      }
+      return ERROR;
     case CLOSE:   // to be implemented in project
-    return OK;
+      return OK;
     case SIZE:    // to be implemented in project
-    return OK;
+      return OK;
     case SEEK:    // to be implemented in project
-    return OK;
+      return OK;
     case FORMAT:  // to be implemented in project
-    return OK;
+      FileSystem.format(param);
+      return OK;
     case DELETE:  // to be implemented in project
-    return OK;
+      return OK;
     }
     return ERROR;
 case INTERRUPT_DISK: // Disk interrupts

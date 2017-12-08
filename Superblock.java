@@ -30,7 +30,7 @@ public class Superblock
     }
   }
 
-  public void sync()
+  public void toDisk()
   {
     byte[] blockData = new byte[Disk.blockSize];
     SysLib.cread(0,blockData);
@@ -74,7 +74,7 @@ public class Superblock
     else if(cmd.toString().toLowerCase().equals("sync"))
     {
       SysLib.cout("Syncing\n");
-      sync();
+      toDisk();
     }
     else if(cmd.toString().toLowerCase().equals("print"))
     {
