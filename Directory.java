@@ -37,10 +37,30 @@ public class Directory
       table[i] = null;
     }
 
-    //test();
+    test();
   }
 
-  private short iretrieve(String filename)
+  private boolean iexists(String filename)
+  { 
+    // find the contents of the table at filename's hash
+    TableEntry current = table[hash(filename)];
+    String s;
+
+    // it's a beginning of a linked list, so while it's not null
+    while(current != null)
+    {
+      s = new String(current.name,0,current.nameSize);
+      if(filename.equals(s))
+      {
+        return true;
+      }
+      current = current.next;
+    }
+
+    return false;
+  }
+
+  private short iretrieve(String filename,String mode)
   {
     // find the contents of the table at filename's hash
     TableEntry current = table[hash(filename)];
@@ -57,12 +77,16 @@ public class Directory
       current = current.next;
     }
 
-    return -1;
+    if(mode.equals("r"))
+    {
+      return -1;
+    }
+    return ialloc(filename);
   }
 
   public short ialloc(String filename)
   {
-    if(iretrieve(filename) != -1)
+    if(iexists(filename))
     {
       return -1;
     }
@@ -100,7 +124,7 @@ public class Directory
 
   public short ifree(String filename)
   {
-    if(iretrieve(filename) == -1)
+    if(!iexists(filename))
     {
       return -1;
     }
@@ -180,13 +204,13 @@ public class Directory
     SysLib.cout("alloc \"number 110\" = " + 
                 Integer.toString(ialloc("number 110")) + "\n");
     SysLib.cout("alloc \"number 111\" = " + 
-                Integer.toString(ialloc("number 111")) + "\n");
+                Integer.toString(iretrieve("number 111","w+")) + "\n");
 
     for(int i=111; i>=0; i--)
     {
       String s = "number " + Integer.toString(i);
       SysLib.cout("retr \"" + s + "\" = " + 
-                  Integer.toString(iretrieve(s)) + "\n");
+                  Integer.toString(iretrieve(s,"r")) + "\n");
     }
   }
 }

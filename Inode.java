@@ -102,6 +102,13 @@ public class Inode
 
     SysLib.cwrite(blockNumber,buffer);
 
+    // add it to the vector
+    while(Inodes.size() < Inumber)
+    {
+      Inodes.add(null);
+    }
+    Inodes.add(this);
+
     return 0;
   }
 
@@ -143,6 +150,28 @@ public class Inode
 
     Inodes.add(new Inode());
     return (short)(Inodes.size() - 1);
+  }
+
+  public static short seekPointerToBlock(int seek, int Inumber)
+  {
+    Inode i = Inodes.get(Inumber);
+    if(i == null)
+    {
+      return -1;
+    }
+
+    // check if it's in a direct block (seek is below directSize * blockSize)
+    if(seek < directSize * Disk.blockSize)
+    {
+      int index = seek / Disk.blockSize;
+      return i.direct[index];
+    }
+
+    // it's in the indirect block somewhere
+    int index = (seek / Disk.blockSize) - directSize;
+    byte[] indirectBlock = new byte[Disk.blockSize];
+    SysLib.cread(i.indirect,indirectBlock);
+    return FileSystem.bytesToShort(index * 2,indirectBlock);
   }
 
   public static boolean deleteInode(int Inumber)

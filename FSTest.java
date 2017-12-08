@@ -1,3 +1,5 @@
+import java.util.Scanner;
+
 class FSTest extends Thread
 {
   private String target;
@@ -44,53 +46,83 @@ class FSTest extends Thread
     else if(target.toLowerCase().equals("readblock") || 
             target.toLowerCase().equals("rb"))
     {
-      String temp = "";
+      printBlock(Integer.parseInt(cmd));
+    }
+    else if(target.toLowerCase().equals("writeblock") || 
+            target.toLowerCase().equals("wb"))
+    {
+      Scanner in = new Scanner(System.in);
+      int index = 0;
+      int b = Integer.parseInt(cmd);
       byte[] buffer = new byte[Disk.blockSize];
-      SysLib.cread(Integer.parseInt(cmd),buffer);
+      SysLib.cread(b,buffer);
 
-      SysLib.cout(" -    0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
-      for(int i=0; i<Disk.blockSize; i+=16)
+      printBlock(b);
+      SysLib.cout("> ");
+      while(in.hasNextByte() && index < Disk.blockSize)
       {
-        if((i/16) < 16)
+        if(index % 4 == 0)
         {
-          SysLib.cout(" ");
-        }
-        SysLib.cout(Integer.toHexString(i/16) + " | ");
-
-        for(int j=0; j<16; j++)
-        {
-          temp = Integer.toHexString(buffer[i + j]);
-          if(temp.length() <= 1)
-          {
-            SysLib.cout("0" + temp + " ");
-          }
-          else if(temp.length() == 2)
-          {
-            SysLib.cout(temp + " ");
-          }
-          else
-          {
-            SysLib.cout(temp.substring(temp.length()-3,temp.length()-1) + " ");
-          }
+          SysLib.cwrite(b,buffer);
+          printBlock(b);
+          SysLib.cout("> ");
         }
 
-        SysLib.cout (" | ");
-
-        for(int j=0; j<16; j++)
-        {
-          if(buffer[i + j] >= 0x20 && buffer[i + j] <= 0x7E)
-          {
-            SysLib.cout(Character.toString((char)(buffer[i + j])));
-          }
-          else
-          {
-            SysLib.cout("-");
-          }
-        }
-
-        SysLib.cout("\n");
+        buffer[index] = in.nextByte();  
+        index++;
       }
     }
     SysLib.exit();
+  }
+
+  public static void printBlock(int b)
+  {
+    String temp = "";
+    byte[] buffer = new byte[Disk.blockSize];
+    SysLib.cread(b,buffer);
+
+    SysLib.cout(" -    0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
+    for(int i=0; i<Disk.blockSize; i+=16)
+    {
+      if((i/16) < 16)
+      {
+        SysLib.cout(" ");
+      }
+      SysLib.cout(Integer.toHexString(i/16) + " | ");
+
+      for(int j=0; j<16; j++)
+      {
+        temp = Integer.toHexString(buffer[i + j] % 0xFF);
+        if(temp.length() <= 1)
+        {
+          SysLib.cout("0" + temp + " ");
+        }
+        else if(temp.length() == 2)
+        {
+          SysLib.cout(temp + " ");
+        }
+        else
+        {
+          //SysLib.cout(temp + " ");
+          SysLib.cout(temp.substring(temp.length()-2,temp.length()) + " ");
+        }
+      }
+
+      SysLib.cout (" | ");
+
+      for(int j=0; j<16; j++)
+      {
+        if(buffer[i + j] >= 0x20 && buffer[i + j] <= 0x7E)
+        {
+          SysLib.cout(Character.toString((char)(buffer[i + j])));
+        }
+        else
+        {
+          SysLib.cout("-");
+        }
+      }
+
+      SysLib.cout("\n");
+    }
   }
 }

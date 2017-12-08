@@ -1,3 +1,5 @@
+import java.util.Scanner;
+
 public class FileSystem
 {
   private static Superblock superblock;
@@ -8,7 +10,7 @@ public class FileSystem
     superblock = new Superblock(diskBlocks);
     directory = new Directory(superblock.totalInodes);
 
-    //InodeTest();
+    InodeTest();
   }
 
   //TODO later
@@ -48,20 +50,30 @@ public class FileSystem
   public void InodeTest()
   {
     Inode n0 = new Inode((short)0);
-    Inode n1 = new Inode((short)1);
-    Inode n2 = new Inode((short)2);
 
-    n0.length = 100;
-    n1.count = 6;
-    n2.flag = 1;
+    n0.length = 21;
+    n0.direct = new short[] {20,22,24,26,28, 30,31,32,33,34,35};
+    n0.indirect = 100;
+
+    byte[] buffer = new byte[Disk.blockSize];
+    for(int i=0; i<Disk.blockSize; i+=2)
+    {
+      shortToBytes(i,(short)((i/2)+150),buffer);
+    }
+    SysLib.cwrite(n0.indirect,buffer);
 
     n0.toDisk((short)0);
-    n1.toDisk((short)1);
-    n2.toDisk((short)3);
 
     SysLib.cout("Inode 0\n" + n0.toString() + "\n");
-    SysLib.cout("Inode 1\n" + n1.toString() + "\n");
-    SysLib.cout("Inode 2\n" + n2.toString() + "\n");
+
+    Scanner in = new Scanner(System.in);
+    int s;
+    while(in.hasNextInt())
+    {
+      s = in.nextInt();
+      SysLib.cout(" -> " + Integer.toString(Inode.seekPointerToBlock(s,0)) 
+                  + "\n");
+    }
   }
 
   /*
