@@ -4,13 +4,16 @@ public class FileSystem
 {
   private static Superblock superblock;
   private static Directory directory;
+  private static FileTable filetable;
   
   public FileSystem(int diskBlocks)
   {
     superblock = new Superblock(diskBlocks);
     directory = new Directory(superblock.totalInodes);
+    filetable = new FileTable(directory);
 
-    InodeTest();
+
+    //InodeTest();
   }
 
   //TODO later
@@ -34,7 +37,8 @@ public class FileSystem
 
   public static int read(int fd, byte[] buffer)
   {
-    return Kernel.OK;
+    
+    //return Kernel.OK;
   }
 
   public static int write(int fd, byte[] buffer)
