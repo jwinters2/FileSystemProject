@@ -13,10 +13,13 @@ public class Inode
   public static final int inodeSize  = 32;  // an inode is 32 bytes
   public static final int directSize = 11;  // number or direct pointers to
                                             // disk blocks
+  private static int maxCount = -1;         // maximum inodes the file
+                                            // system can support
 
   // for the flag
-  public static final short FLAG_UNUSED = 0;
-  public static final short FLAG_USED   = 1;
+  public static final short FLAG_UNUSED  = 0;
+  public static final short FLAG_USED    = 1;
+  public static final short FLAG_DELETED = 2;
   
   // member variables
   public int length;     // length of the file in bytes
@@ -24,6 +27,17 @@ public class Inode
   public short flag;     // state of the inode
   public short direct[] = new short[directSize]; // direct pointers to data
   public short indirect; // indirect pointer
+
+  public static boolean setMaxCount(int i)
+  {
+    // it starts at -1, so if it's already set don't set it again
+    if(maxCount == -1)
+    {
+      maxCount = i;
+      return true;
+    }
+    return false;
+  }
 
   /*
    * default constructor
@@ -103,13 +117,61 @@ public class Inode
     SysLib.cwrite(blockNumber,buffer);
 
     // add it to the vector
-    while(Inodes.size() < Inumber)
-    {
-      Inodes.add(null);
-    }
-    Inodes.add(this);
+    //while(Inodes.size() < Inumber)
+    //{
+      //Inodes.add(null);
+    //}
+    //Inodes.add(this);
 
     return 0;
+  }
+
+  public static void allToDisk()
+  {
+    // update the inode count (in superblock)
+    byte[] buffer = new byte[Disk.blockSize];
+    SysLib.cread(0,buffer);
+    FileSystem.intToBytes(12,Inodes.size(),buffer);
+    SysLib.cwrite(0,buffer);
+
+    // if an entry in the vector is null, we write a "inode" with length = -1
+    // so we know to leave a gap in when we're booting up later
+    Inode dummy = new Inode();
+    dummy.length = -1;
+
+    for(short i=0; i<Inodes.size(); i++)
+    {
+      if(Inodes.get(i) != null)
+      {
+        Inodes.get(i).toDisk(i);
+      }
+      else
+      {
+        dummy.toDisk(i);
+      }
+    }
+  }
+
+  public static void readAllFromDisk()
+  {
+    // update the inode count (in superblock)
+    byte[] buffer = new byte[Disk.blockSize];
+    SysLib.cread(0,buffer);
+    int count = FileSystem.bytesToInt(12,buffer);
+    Inode temp;
+
+    for(short i=0; i<count; i++)
+    {
+      temp = new Inode(i);
+      if(temp.length != -1)
+      {
+        Inodes.add(temp);  
+      }
+      else
+      {
+        Inodes.add(null);
+      }
+    }
   }
 
   public String toString()
@@ -117,8 +179,8 @@ public class Inode
     String retval = "";
     retval += ("l=" + Integer.toString(length) + " ");
     retval += ("c=" + Short.toString(count)    + " ");
-    retval += ("f=" + Short.toString(flag)     + "\n");
-    retval += "  d=[";
+    retval += ("f=" + Short.toString(flag)     + " ");
+    retval += "d=[";
     for(int i=0; i<directSize; i++)
     {
       retval += Short.toString(direct[i]);
@@ -128,7 +190,7 @@ public class Inode
       }
       else
       {
-        retval += "]\n";
+        retval += "] ";
       }
     }
     retval += ("i=" + Short.toString(indirect));
@@ -155,6 +217,12 @@ public class Inode
         Inodes.set(i,new Inode());
         return i;
       }
+    }
+
+    // we didn't find a gap to fill, so don't add one if we're at full capacity
+    if(Inodes.size() == maxCount)
+    {
+      return (short)(-1);
     }
 
     Inodes.add(new Inode());
@@ -185,8 +253,9 @@ public class Inode
 
   public static boolean deleteInode(int Inumber)
   {
-    if(Inumber >= 0 && Inumber < Inodes.size())
+    if(Inumber >= 0 && Inumber < Inodes.size() && Inodes.get(Inumber) != null)
     {
+      FileSystem.freeInode(Inodes.get(Inumber));
       Inodes.set(Inumber,null);
       return true;
     }

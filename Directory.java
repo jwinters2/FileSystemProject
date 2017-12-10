@@ -4,9 +4,7 @@ public class Directory
   private static final int maxNameLength = 30;
 
   private static final int tableSize = 100;
-
-  private static final int entrySize = 35;  // 35 bytes per entry
-  private static final int entriesPerBlock = Disk.blockSize / entrySize;
+  private static final int entrySize = 33;  // 33 bytes per entry
 
   private class TableEntry
   {
@@ -21,6 +19,59 @@ public class Directory
       nameSize = 0;
       Inumber = 0;
       next = null;
+    }
+
+    public void toBuffer(int pos, byte[] buffer)
+    {
+      FileSystem.shortToBytes(pos,Inumber,buffer);
+      pos += 2;
+      buffer[pos++] = nameSize;
+
+      for(int i=0; i<maxNameLength; i++)
+      {
+        if(i < nameSize)
+        {
+          //SysLib.cout(Integer.toString(pos)+Character.toString(name[i])+" ");
+          buffer[pos] = (byte)name[i];
+        }
+        else
+        {
+          buffer[pos] = 0;
+        }
+        pos++;
+      }
+    }
+
+    public void fromBuffer(int pos, byte[] buffer)
+    {
+      Inumber = FileSystem.bytesToShort(pos,buffer);
+      pos += 2;
+      nameSize = buffer[pos++];
+      
+      for(int i=0; i<maxNameLength; i++)
+      {
+        if(i < nameSize)
+        {
+          //SysLib.cout(Character.toString(name[i])+Integer.toString(pos)+" ");
+          name[i] = (char)buffer[pos];
+        }
+        else
+        {
+          name[i] = 0;
+        }
+        pos++;
+      }
+    }
+
+    public String getName()
+    {
+      //SysLib.cout("nameSize = " + Integer.toString(nameSize) + "\n");
+      String retval = "";
+      for(int i=0; i<nameSize; i++)
+      {
+        retval += Character.toString(name[i]);
+      }
+      return retval;
     }
   }
 
@@ -37,8 +88,17 @@ public class Directory
       table[i] = null;
     }
 
+    inode = Inode.getInode(0);
+    fromDisk();
     //test();
-    inode = Inode.getInode(Inode.allocateInode());
+  }
+
+  public void clear()
+  {
+    for(int i=0; i<tableSize; i++)
+    {
+      table[i] = null;
+    }
   }
 
   private boolean iexists(String filename)
@@ -93,6 +153,11 @@ public class Directory
     }
 
     short Inum = Inode.allocateInode();
+    if(Inum == -1)
+    {
+      return -1;
+    }
+
     int hashSlot = hash(filename);
 
     // make a new entry
@@ -136,8 +201,7 @@ public class Directory
     TableEntry prev = null;
     while(current != null)
     {
-      s = new String(current.name,0,current.nameSize); 
-      if(filename.equals(s))
+      if(filename.equals(current.getName()))
       {
         Inode.deleteInode(current.Inumber);
         if(prev == null)
@@ -180,12 +244,76 @@ public class Directory
     return (int)(retval % tableSize);
   }
 
-  public void saveToDisk()
+  public void toDisk()
   {
+    inode = Inode.getInode(0);
+
+    // convert the data into a byte array
+    byte[] buffer = new byte[2 + entrySize * maxFileCount];
+    int cursor = 0;
+    TableEntry current;
+    for(int i=0; i<tableSize; i++)
+    {
+      current = table[i]; 
+      while(current != null)
+      {
+        current.toBuffer(2 + cursor * entrySize, buffer);
+        current = current.next;
+        cursor++;
+      }
+    }
+
+    // store the total count at the very beginning
+    FileSystem.shortToBytes(0,(short)cursor,buffer);
+
+    //FSTest.printData(buffer);
+
+    // write it to inode 0
+    FileTableEntry fte = new FileTableEntry(inode,(short)0,"w");
+    FileSystem.write(fte,buffer);
   }
 
-  public void readFromDisk()
+  public void fromDisk()
   {
+    inode = Inode.getInode(0);
+    if(inode.length <= 0)
+    {
+      return;
+    }
+
+    // read it from inode 0
+    byte[] buffer = new byte[2 + entrySize * maxFileCount];
+    FileTableEntry fte = new FileTableEntry(inode,(short)0,"r");
+    FileSystem.read(fte,buffer);
+
+    //FSTest.printData(buffer);
+
+    // convert the data into a byte array
+    short count = FileSystem.bytesToShort(0,buffer);
+    int cursor = 0;
+    int index;
+    TableEntry current;
+    for(int i=0; i<count; i++)
+    {
+      current = new TableEntry();
+      current.fromBuffer(2 + cursor * entrySize, buffer);
+      
+      index = hash(current.getName());
+      if(table[index] == null)
+      {
+        table[index] = current;
+      }
+      else
+      {
+        TableEntry tail = table[index];
+        while(tail.next != null)
+        {
+          tail = tail.next;
+        }
+        tail.next = current;
+      }
+      cursor++;
+    }
   }
 
   public void test()

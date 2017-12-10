@@ -71,6 +71,7 @@ private static BufferedReader input
 // The heart of Kernel
 public static int interrupt( int irq, int cmd, int param, Object args ) {
 TCB myTcb;
+FileTableEntry fte;
 switch( irq ) {
 case INTERRUPT_SOFTWARE: // System calls
     switch( cmd ) {
@@ -112,6 +113,7 @@ case INTERRUPT_SOFTWARE: // System calls
         // I'm terminated!
         scheduler.deleteThread( );
         cache.sync();
+        FileSystem.sync();
         return OK;
         }
     }
@@ -194,7 +196,10 @@ case INTERRUPT_SOFTWARE: // System calls
         System.err.print( (String)args );
         break;
     default:
-      return FileSystem.write( param, (byte[]) args );
+      if ( ( myTcb = scheduler.getMyTcb( ) ) != null )
+      {
+        return FileSystem.write( myTcb.getFtEnt(param) , (byte[]) args );
+      }
     }
     return OK;
     case CREAD:   // to be implemented in assignment 4
@@ -208,23 +213,39 @@ case INTERRUPT_SOFTWARE: // System calls
       cache.flush( );
       return OK;
     case OPEN:    // to be implemented in project
-      FileTableEntry f = FileSystem.open(((String[])args)[0],
-                                         ((String[])args)[1]);
-      if ( ( myTcb = scheduler.getMyTcb( ) ) != null )
+      fte = FileSystem.open(((String[])args)[0],((String[])args)[1]);
+      if ( ( myTcb = scheduler.getMyTcb( ) ) != null)
       {
-        return myTcb.getFd(f);
+        return myTcb.getFd(fte);
       }
       return ERROR;
     case CLOSE:   // to be implemented in project
-      return OK;
+      if ( ( myTcb = scheduler.getMyTcb() ) != null &&
+         (fte = myTcb.returnFd(param)) != null && FileSystem.close(fte))
+      {
+        return OK;
+      }
+      return ERROR;
     case SIZE:    // to be implemented in project
-      return OK;
+      if ( ( myTcb = scheduler.getMyTcb() ) != null &&
+         (fte = myTcb.getFtEnt(param)) != null)
+      {
+        return fte.inode.length;
+      }
+      return ERROR;
     case SEEK:    // to be implemented in project
-      return OK;
+      if ( ( myTcb = scheduler.getMyTcb() ) != null &&
+         (fte = myTcb.getFtEnt(param)) != null)
+      {
+        return FileSystem.seek(fte,((int[])args)[0],
+                                   ((int[])args)[1]);
+      }
+      return ERROR;
     case FORMAT:  // to be implemented in project
       FileSystem.format(param);
       return OK;
     case DELETE:  // to be implemented in project
+      FileSystem.delete(((String)args));
       return OK;
     }
     return ERROR;

@@ -5,7 +5,6 @@ public class FileTableEntry {
   public final short iNumber;
   public int count;
   public final String Mode;
-  public int fileDescriptor;
 
   public FileTableEntry()
   {

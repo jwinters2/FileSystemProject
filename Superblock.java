@@ -35,9 +35,9 @@ public class Superblock
     byte[] blockData = new byte[Disk.blockSize];
     SysLib.cread(0,blockData);
 
-    FileSystem.intToBytes(0, totalBlocks, blockData);
-    FileSystem.intToBytes(4, totalInodes, blockData);
-    FileSystem.intToBytes(8, freeList,    blockData);
+    FileSystem.intToBytes(0,  totalBlocks, blockData);
+    FileSystem.intToBytes(4,  totalInodes, blockData);
+    FileSystem.intToBytes(8,  freeList,    blockData);
 
     SysLib.cwrite(0,blockData);
   }

@@ -10,7 +10,11 @@ public class FileTable
         table = new Vector<FileTableEntry>(); // instantiates the file structure
                                               //table
         dir = directory;              // receives a reference from the directory
+  }
 
+  public synchronized void clear()
+  {
+    table.clear();
   }
 
   public synchronized FileTableEntry fretrieve(String filename, String mode)
@@ -27,6 +31,22 @@ public class FileTable
     {
       if(table.get(i).iNumber == inum) 
       {
+        FileTableEntry retval = table.get(i);
+        retval.count++;
+        if(retval.inode.flag == Inode.FLAG_DELETED)
+        {
+          // don't allow for deleted files to be returned
+          return null;
+        }
+
+        if(mode.equals("a"))
+        {
+          retval.seekPtr = retval.inode.length;
+        }
+        else
+        {
+          retval.seekPtr = 0;
+        }
         return table.get(i);
       }
     }
@@ -49,24 +69,38 @@ public class FileTable
     return null;
   }
 
+  public synchronized FileTableEntry getByInum(int inum)
+  {
+    for(int i=0; i<table.size(); i++)
+    {
+      if(table.get(i).iNumber == inum)
+      {
+        return table.get(i);
+      }
+    }
+    return null;
+  }
+
     // public methods
     public synchronized FileTableEntry falloc( String filename, String mode ){
       // allocate a new file structure table entry for this file name
 
       short inum  = dir.iretrieve(filename,mode);
+      if(inum == -1)
+      {
+        return null;
+      }
+
       Inode inode = Inode.getInode(inum);
 
       FileTableEntry entry = new FileTableEntry(inode,inum,mode);
       // allocate/retrive and register the correspoding inode using dir
-      //increment this inode count
-      entry.count++;
 
       //immidiately write back this inode to disk
 
       entry.inode.toDisk(entry.iNumber);
 
       table.add(entry);
-      entry.fileDescriptor = table.size() - 1;
 
       return entry;
      }
@@ -74,20 +108,24 @@ public class FileTable
     public synchronized boolean ffree( FileTableEntry entry )
     {
       //receive a file table entry reference
-      // save the corresopding inode to disk
-       if(table.indexOf(entry) == -1)
-       {
-         return false;
-       }
+      // save the corresponding inode to disk
+        if(entry == null || table.indexOf(entry) == -1)
+        {
+          return false;
+        }
 
-       entry.inode.toDisk(entry.iNumber);
-       // free this file table entry
-       entry.count--;
-       if(entry.count == 0)
-       {
-         table.remove(entry);
-       }
-       return true;
+        entry.inode.toDisk(entry.iNumber);
+        // free this file table entry
+        entry.count--;
+        if(entry.count <= 0)
+        {
+          table.remove(entry);
+          if(entry.inode.flag == Inode.FLAG_DELETED)
+          {
+            Inode.deleteInode(entry.iNumber);
+          }
+        }
+        return true;
     }
 
     public synchronized boolean fempty() {

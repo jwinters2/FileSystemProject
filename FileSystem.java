@@ -2,6 +2,12 @@ import java.util.Scanner;
 
 public class FileSystem
 {
+  private static final boolean SKIP_FORMAT_FREE_LINKING = false;
+
+  public static final int SEEK_SET = 0;
+  public static final int SEEK_CUR = 1;
+  public static final int SEEK_END = 2;
+
   private static Superblock superblock;
   private static Directory directory;
   private static FileTable filetable;
@@ -9,26 +15,18 @@ public class FileSystem
   public FileSystem(int diskBlocks)
   {
     superblock = new Superblock(diskBlocks);
+    Inode.setMaxCount(superblock.totalInodes);
+    Inode.readAllFromDisk();
+
     directory = new Directory(superblock.totalInodes);
     filetable = new FileTable(directory);
-
 
     //InodeTest();
   }
 
-  //TODO later
-  /*
-  void sync()
-  {
-  }
-
-  boolean close(FileTableEntry entry)
-  {
-  }
-  */
-
   public static boolean format(int files)
   {
+    // set superblock variables
     superblock.totalInodes = files;
 
     superblock.freeList = 2 + (files-1)/16;
@@ -36,57 +34,99 @@ public class FileSystem
     {
       superblock.freeList = 2;
     }
-    superblock.toDisk();
 
+    // reset inode list (except for one, there's always one for / )
+    Inode.Inodes.clear();
+    Inode.allocateInode();
+
+    // reset directory and fileTable
+    directory.clear();
+    filetable.clear();
+
+    // clear the superblock and inode-reserved blocks
     byte[] blockData = new byte[Disk.blockSize];
-    int currentPrint = 0;
-
-    /*
-    for(int i=superblock.freeList; i<superblock.totalBlocks; i++)
+    for(int i=0; i<Disk.blockSize; i++)
     {
-      SysLib.cread(i,blockData);
-
-      if(i == superblock.totalBlocks - 1)
-      {
-        // the very last block doesn't link to anywhere, so -1
-        intToBytes(0, -1, blockData);
-      }
-      else
-      {
-        // otherwise link to the next block
-        intToBytes(0, i+1, blockData);
-      }
-
-      SysLib.cwrite(i,blockData);
-
-      
-      //if((i - superblock.freeList) * 100 / 
-      //   (superblock.totalBlocks - superblock.freeList) != currentPrint)
-      //{
-      //  SysLib.cout(Integer.toString(currentPrint) + "% ");
-      //  currentPrint = (i - superblock.freeList) * 100 / 
-      //                 (superblock.totalBlocks - superblock.freeList);
-      //}
-      
+      blockData[i] = 0;
     }
-    */
+    for(int i=0; i<superblock.freeList; i++)
+    {
+      SysLib.cwrite(i,blockData);
+    }
+
+    // write superblock data to block 0 and inode 0 date to block 1
+    superblock.toDisk();
+    Inode.allToDisk();
+
+    if(!SKIP_FORMAT_FREE_LINKING)
+    {
+      //SysLib.cout("\n|-----20%-|-----40%-|-----60%-|-----80%-|----100%-|\n");
+      int currentPrint = 0;
+
+      // every other block is a free block, which needs the index of the next
+      // free block to make a chain
+      for(int i=superblock.freeList; i<superblock.totalBlocks; i++)
+      {
+        if(i == superblock.totalBlocks - 1)
+        {
+          // the very last block doesn't link to anywhere, so -1
+          intToBytes(0, -1, blockData);
+        }
+        else
+        {
+          // otherwise link to the next block
+          intToBytes(0, i+1, blockData);
+        }
+
+        SysLib.cwrite(i,blockData);
+      
+        if((i - superblock.freeList) * 51 / 
+           (superblock.totalBlocks - superblock.freeList) != currentPrint)
+        {
+          currentPrint = (i - superblock.freeList) * 51 / 
+                         (superblock.totalBlocks - superblock.freeList);
+          //SysLib.cout("#");
+        }
+      }
+      //SysLib.cout("#\n");
+    }
 
     return true;
   }
+
+  public static void sync()
+  {
+    superblock.toDisk();
+    Inode.allToDisk();
+    directory.toDisk();
+  }
+
   public static int read(FileTableEntry fte, byte[] output)
   {
+    if(fte == null || fte.inode == null || 
+       fte.Mode.equals("w") || fte.Mode.equals("a"))
+    {
+      //SysLib.cout("error: mode is " + fte.Mode + "\n");
+      return Kernel.ERROR;
+    }
+
     Inode inode = fte.inode;
+    //SysLib.cout("READ inode: " + inode.toString() + "\n");
+    //SysLib.cout("      inum:" + Integer.toString(fte.iNumber) + "\n");
+    //SysLib.cout("   seekptr:" + Integer.toString(fte.seekPtr) + "\n");
     byte[] buffer = new byte[Disk.blockSize];
 
     int bytesRead = 0;
     int block = 0;
     int blockLength = 0;
     int address = 0;
-    while(bytesRead < buffer.length && fte.seekPtr < inode.length)
+    while(bytesRead < output.length && fte.seekPtr < inode.length)
     {
       // calculate the block and actual address from the seekPtr
       block = Inode.seekPointerToBlock(fte.seekPtr,fte.iNumber);
       address = block * Disk.blockSize + fte.seekPtr % Disk.blockSize;
+      //SysLib.cout("block: " + Integer.toString(block) + "\n");
+      //SysLib.cout("addr : " + Integer.toString(address) + "\n");
       SysLib.cread(block,buffer);
       
       // start by assuming we're reading the entire block from memory
@@ -97,7 +137,7 @@ public class FileSystem
         // we're starting somewhere in the middle of the block
         blockLength -= address - (block * Disk.blockSize);
       }
-      if( (block+1) * Disk.blockSize > address + output.length - bytesRead)
+      if( (block+1) * Disk.blockSize - address > output.length - bytesRead)
       {
         // we're ending before the end of the block
         blockLength -= ((block+1) * Disk.blockSize)
@@ -109,13 +149,23 @@ public class FileSystem
 
       bytesRead += blockLength;
       fte.seekPtr += blockLength;
+
+      //SysLib.cout("bytes read: " + Integer.toString(bytesRead) + "\n");
+      //SysLib.cout("seekptr   : " + Integer.toString(fte.seekPtr) + "\n");
     }
+    
+    //FSTest.printData(output);
 
     return bytesRead;
   }
 
   public static int write(FileTableEntry fte, byte[] output)
   {
+    if(fte == null || fte.inode == null || fte.Mode.equals("r"))
+    {
+      return Kernel.ERROR;
+    }
+
     Inode inode = fte.inode;
     byte[] buffer = new byte[Disk.blockSize];
 
@@ -123,17 +173,21 @@ public class FileSystem
     int block = 0;
     int blockLength = 0;
     int address = 0;
-    while(bytesWritten < buffer.length)
+    while(bytesWritten < output.length)
     {
       // if we hit the end of the file, allocate a new block for it
-      if(fte.seekPtr < inode.length)
+      if(fte.seekPtr >= inode.length)
       {
+        //SysLib.cout("allocating new block for inode\n");
         allocateBlock(inode);
       }
 
       // calculate the block and actual address from the seekPtr
       block = Inode.seekPointerToBlock(fte.seekPtr,fte.iNumber);
       address = block * Disk.blockSize + fte.seekPtr % Disk.blockSize;
+      //SysLib.cout("inode = " + inode.toString() + "\n");
+      //SysLib.cout("addr  = " + Integer.toString(address) + "\n");
+      //SysLib.cout("block = " + Integer.toString(block)   + "\n");
       SysLib.cread(block,buffer);
       
       // start by assuming we're writing the entire block into memory
@@ -157,18 +211,88 @@ public class FileSystem
 
       bytesWritten += blockLength;
       fte.seekPtr += blockLength;
+
+      if(fte.seekPtr > inode.length)
+      {
+        inode.length = fte.seekPtr;
+      }
     }
 
     return bytesWritten;
   }
-  public static int write(int fd, byte[] buffer)
-  {
-    return Kernel.OK;
-  }
 
   public static FileTableEntry open(String filename, String mode)
   {
-    return filetable.fretrieve(filename,mode);
+    FileTableEntry retval = filetable.fretrieve(filename,mode);
+    sync();
+    return retval;
+  }
+
+  public static boolean close(FileTableEntry fte)
+  {
+    return filetable.ffree(fte); 
+  }
+
+  public static int seek(FileTableEntry fte,int offset,int whence)
+  {
+    switch(whence)
+    {
+      case SEEK_SET:
+          fte.seekPtr = offset;
+          break;
+
+      case SEEK_CUR:
+          fte.seekPtr += offset;
+          break;
+
+      case SEEK_END:
+          fte.seekPtr = fte.inode.length + offset;
+          break;
+
+      default:
+        return Kernel.ERROR;
+    }
+
+    if(fte.seekPtr < 0)
+    {
+      fte.seekPtr = 0;
+    }
+    if(fte.seekPtr > fte.inode.length)
+    {
+      fte.seekPtr = fte.inode.length;
+    }
+    return fte.seekPtr;
+  }
+
+  public static int delete(String filename)
+  {
+    short inum = directory.ifree(filename);
+    if(inum == -1)
+    {
+      return Kernel.ERROR;
+    }
+
+    FileTableEntry fte = filetable.getByInum(inum);
+
+    if(fte == null)
+    {
+      // if fte is null then it wasn't in the filetable, therefore it's not open
+      // just delete it
+      Inode.deleteInode(inum);
+      return Kernel.OK;
+    }
+    else
+    {
+      // it's open somewhere, just set it to deleted
+      fte.inode.flag = Inode.FLAG_DELETED;
+      //return Kernel.ERROR;
+    }
+    return Kernel.OK;
+  }
+
+  public static short deleteFromDirectory(String filename)
+  {
+    return directory.ifree(filename);
   }
 
   public static void superblockTest(String cmd,int x,int y,int z)
@@ -219,6 +343,7 @@ public class FileSystem
   {
     int retval = superblock.freeList;
     // get the next free's next (which is the new next free)
+    //SysLib.cout("free block = "+Integer.toString(superblock.freeList) + "\n");
     byte[] blockData = new byte[Disk.blockSize];
     SysLib.cread(superblock.freeList,blockData);
 
@@ -276,6 +401,41 @@ public class FileSystem
       }
     }
     return false;
+  }
+
+  public static void freeBlock(short block)
+  {
+    byte[] buffer = new byte[Disk.blockSize];
+    intToBytes(0,superblock.freeList,buffer);
+    SysLib.cwrite(block,buffer);
+    superblock.freeList = block;
+  }
+
+  public static void freeInode(Inode inode)
+  {
+    for(int i=0; i<Inode.directSize; i++) 
+    {
+      if(inode.direct[i] != -1)
+      {
+        freeBlock(inode.direct[i]);
+      }
+    }
+
+    if(inode.indirect != -1)
+    {
+      byte[] blockData = new byte[Disk.blockSize];
+      SysLib.cread(inode.indirect,blockData);
+
+      for(int i=0; i<Disk.blockSize; i+=2)
+      {
+        short block = bytesToShort(i,blockData);
+        if(block != -1)
+        {
+          freeBlock(block);
+        }
+      }
+      freeBlock(inode.indirect);
+    }
   }
 
   public static int bytesToInt(int location, byte[] buffer)
