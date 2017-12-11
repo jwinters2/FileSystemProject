@@ -141,7 +141,7 @@ public class Inode
 
     for(short i=0; i<Inodes.size(); i++)
     {
-      if(Inodes.get(i) != null)
+      if(Inodes.get(i) != null && Inodes.get(i).flag != FLAG_DELETED)
       {
         Inodes.get(i).toDisk(i);
       }

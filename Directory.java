@@ -73,6 +73,12 @@ public class Directory
       }
       return retval;
     }
+
+    public String toString()
+    {
+      return "| " + Integer.toString(Inumber) + " " + getName() + 
+             " (" + Integer.toString(nameSize) + ")";
+    }
   }
 
   private Inode inode;        // the inode for this file
@@ -203,7 +209,7 @@ public class Directory
     {
       if(filename.equals(current.getName()))
       {
-        Inode.deleteInode(current.Inumber);
+        //Inode.deleteInode(current.Inumber);
         if(prev == null)
         {
           // this is the first entry in the linked list
@@ -314,6 +320,21 @@ public class Directory
       }
       cursor++;
     }
+  }
+
+  public void print()
+  {
+    SysLib.cout("+---------------\n");
+    for(int i=0; i<tableSize; i++)
+    {
+      TableEntry current = table[i];
+      while(current != null)
+      {
+        SysLib.cout(current.toString() + "\n");
+        current = current.next;
+      }
+    }
+    SysLib.cout("+---------------\n");
   }
 
   public void test()

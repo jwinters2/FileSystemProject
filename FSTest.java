@@ -106,34 +106,24 @@ class FSTest extends Thread
       {
         SysLib.cout("file descriptor: ");
         int fd = in.nextInt();
-        SysLib.cout("  bytes to read (-1 for all): ");
+        SysLib.cout("  bytes to read: ");
         int size = in.nextInt();
-        if(fd != -1)
+        if(fd != -1 || size < 0)
         {
-
-          // fix to-read size
-          if(size < 0)
-          {
-            size = SysLib.fsize(fd);
-          }
-
-          //SysLib.cout("file is " + Integer.toString(SysLib.fsize(fd)) + 
-          //            " bytes long\n");
           byte[] buffer = new byte[size];
           SysLib.cout("reading from file ...\n");
-          SysLib.read(fd,buffer);
+          int bytesRead = SysLib.read(fd,buffer);
 
-          //SysLib.cout("[");
-          //for(int i=0; i<buffer.length; i++)
-          //{
-            //SysLib.cout(Integer.toString(buffer[i]) + " ");
-          //}
-          //SysLib.cout("]");
-          printData(buffer);
+          SysLib.cout("read " + Integer.toString(bytesRead) + " bytes\n");
+          printData(buffer,bytesRead);
+        }
+        else if(fd != -1)
+        {
+          SysLib.cout("cannot open file: DNE\n");
         }
         else
         {
-          SysLib.cout("cannot open file: DNE\n");
+          SysLib.cout("cannot read " + Integer.toString(size) + " bytes\n");
         }
       }
       else if(target.toLowerCase().equals("writefile") || 
@@ -180,11 +170,16 @@ class FSTest extends Thread
         // save changes to disk, just in case
         FileSystem.sync();
       }
-      else if(target.toLowerCase().equals("close"))
+      else if(target.toLowerCase().equals("close") || 
+              target.toLowerCase().equals("cf"))
       {
         SysLib.cout("file descriptor: ");
         int fd = in.nextInt();
         SysLib.close(fd);
+      }
+      else if(target.toLowerCase().equals("ls"))
+      {
+        FileSystem.listDirectory();
       }
       else if(target.toLowerCase().equals("seek"))
       {
@@ -220,6 +215,8 @@ class FSTest extends Thread
               target.toLowerCase().equals("q"))
       {
         SysLib.cout("bye\n");
+        //FileSystem.sync();
+        //SysLib.csync();
         SysLib.exit();
         return;
       }
@@ -238,10 +235,15 @@ class FSTest extends Thread
 
   public static void printData(byte[] buffer)
   {
+    printData(buffer,buffer.length);
+  }
+
+  public static void printData(byte[] buffer,int size)
+  {
     String temp = "";
 
     SysLib.cout(" -    0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F\n");
-    for(int i=0; i<buffer.length; i+=16)
+    for(int i=0; i<size; i+=16)
     {
       if((i/16) < 16)
       {
@@ -251,7 +253,7 @@ class FSTest extends Thread
 
       for(int j=0; j<16; j++)
       {
-        if(i + j >= buffer.length)
+        if(i + j >= size)
         {
           // we ran out of room before the end of the line
           SysLib.cout("   ");
@@ -279,7 +281,7 @@ class FSTest extends Thread
 
       for(int j=0; j<16; j++)
       {
-        if(i + j >= buffer.length)
+        if(i + j >= size)
         {
           SysLib.cout(" ");
         }

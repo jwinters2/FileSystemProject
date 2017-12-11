@@ -57,6 +57,7 @@ public class FileSystem
     // write superblock data to block 0 and inode 0 date to block 1
     superblock.toDisk();
     Inode.allToDisk();
+    directory.clear();
 
     if(!SKIP_FORMAT_FREE_LINKING)
     {
@@ -290,6 +291,11 @@ public class FileSystem
     return Kernel.OK;
   }
 
+  public static void listDirectory()
+  {
+    directory.print();
+  }
+
   public static short deleteFromDirectory(String filename)
   {
     return directory.ifree(filename);
@@ -329,16 +335,7 @@ public class FileSystem
     }
   }
 
-  /*
-   * bytesToInt
-   *
-   * @param  : location : int : where in the buffer to get the int from
-   * @param  : buffer : byte[] : the buffer to get data from
-   * @return : int : the integer version of (buffer) at (location)
-   *
-   * bytesToInt converts 4 bytes from buffer starting at (location)
-   * and converts it into an int
-   */
+  
   public static short getNextFree()
   {
     int retval = superblock.freeList;
@@ -438,6 +435,16 @@ public class FileSystem
     }
   }
 
+  /*
+   * bytesToInt
+   *
+   * @param  : location : int : where in the buffer to get the int from
+   * @param  : buffer : byte[] : the buffer to get data from
+   * @return : int : the integer version of (buffer) at (location)
+   *
+   * bytesToInt converts 4 bytes from buffer starting at (location)
+   * and converts it into an int
+   */
   public static int bytesToInt(int location, byte[] buffer)
   {
     int retval = 0;
