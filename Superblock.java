@@ -30,9 +30,9 @@ public class Superblock
       freeList    = FileSystem.bytesToInt(8,blockData);
     }
 
-    SysLib.cout("totalBlocks = " + Integer.toString(totalBlocks) + "\n");
-    SysLib.cout("totalInodes = " + Integer.toString(totalInodes) + "\n");
-    SysLib.cout("freeList    = " + Integer.toString(freeList) + "\n");
+    //SysLib.cout("totalBlocks = " + Integer.toString(totalBlocks) + "\n");
+    //SysLib.cout("totalInodes = " + Integer.toString(totalInodes) + "\n");
+    //SysLib.cout("freeList    = " + Integer.toString(freeList) + "\n");
   }
 
   public void toDisk()

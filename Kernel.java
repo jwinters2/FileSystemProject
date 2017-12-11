@@ -242,11 +242,13 @@ case INTERRUPT_SOFTWARE: // System calls
       }
       return ERROR;
     case FORMAT:  // to be implemented in project
-      FileSystem.format(param);
-      return OK;
+      if(FileSystem.format(param))
+      {
+        return OK;
+      }
+      return ERROR;
     case DELETE:  // to be implemented in project
-      FileSystem.delete(((String)args));
-      return OK;
+      return FileSystem.delete(((String)args));
     }
     return ERROR;
 case INTERRUPT_DISK: // Disk interrupts

@@ -1,11 +1,26 @@
+/*
+ * FileTableEntry
+ *
+ * a single entry for the FileTable (which stores open files), and for TCBs
+ * (which I didn't write)
+ */
+public class FileTableEntry
+{
+  public int seekPtr;           // where in the file reading and writing is
+  public final Inode inode;     // the inode associated with the file
+  public final short iNumber;   // the inode number for this file
+  public int count;             // the number of threads this file is open in
+  public final String Mode;     // the mode the file is open in
+                                // could be r  (read)
+                                //          w  (write)
+                                //          w+ (read and write)
+                                //          a  (append, start at the end)
 
-public class FileTableEntry {
-  public int seekPtr;
-  public final Inode inode;
-  public final short iNumber;
-  public int count;
-  public final String Mode;
-
+  /*
+   * constructor
+   *
+   * this is the default constructor, sets a completely blank constructor
+   */
   public FileTableEntry()
   {
     seekPtr = 0;
@@ -15,6 +30,13 @@ public class FileTableEntry {
     Mode = "";
   }
 
+  /*
+   * constructor
+   *
+   * @param : i : Inode : the inode associated with this file
+   * @param : in : int : the inode number associated with this file
+   * @param : m : String : the mode for this entry
+   */
   public FileTableEntry(Inode i, short in, String m)
   {
     seekPtr = 0;
@@ -22,9 +44,12 @@ public class FileTableEntry {
     iNumber = in;
     count = 1;
     Mode = m;
-    if(Mode.equals("a")) // if  mode is append ,
+
+    // if mode is append ...
+    if(Mode.equals("a")) 
     {
-      seekPtr = inode.length;   // seekPtr points to the end of the file
+      // ... seekPtr points to the end of the file
+      seekPtr = inode.length;
     }
   }
 }
