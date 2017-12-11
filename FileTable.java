@@ -23,6 +23,7 @@ public class FileTable
     // if we get -1, there is no such entry (and we can't make one)
     if(inum == -1)
     {
+      SysLib.cout("iretrieve gives back -1\n");
       return null;
     }
 

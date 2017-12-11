@@ -35,13 +35,16 @@ public class FileSystem
       superblock.freeList = 2;
     }
 
+    // set Inode max count to the new value
+    Inode.setMaxCount(superblock.totalInodes);
+
     // reset inode list (except for one, there's always one for / )
     Inode.Inodes.clear();
     Inode.allocateInode();
 
     // reset directory and fileTable
-    directory.clear();
-    filetable.clear();
+    //directory.clear();
+    //filetable.clear();
 
     // clear the superblock and inode-reserved blocks
     byte[] blockData = new byte[Disk.blockSize];
@@ -57,11 +60,10 @@ public class FileSystem
     // write superblock data to block 0 and inode 0 date to block 1
     superblock.toDisk();
     Inode.allToDisk();
-    directory.clear();
 
     if(!SKIP_FORMAT_FREE_LINKING)
     {
-      //SysLib.cout("\n|-----20%-|-----40%-|-----60%-|-----80%-|----100%-|\n");
+      SysLib.cout("\n|-----20%-|-----40%-|-----60%-|-----80%-|----100%-|\n");
       int currentPrint = 0;
 
       // every other block is a free block, which needs the index of the next
@@ -86,11 +88,22 @@ public class FileSystem
         {
           currentPrint = (i - superblock.freeList) * 51 / 
                          (superblock.totalBlocks - superblock.freeList);
-          //SysLib.cout("#");
+          SysLib.cout("#");
         }
       }
-      //SysLib.cout("#\n");
+      SysLib.cout("#\n");
     }
+
+    // re-initialize directory and filetable to use the new values
+    directory = new Directory(superblock.totalInodes);
+    filetable = new FileTable(directory);
+
+    SysLib.cout("totalBlocks = " + 
+                Integer.toString(superblock.totalBlocks) + "\n");
+    SysLib.cout("totalInodes = " + 
+                Integer.toString(superblock.totalInodes) + "\n");
+    SysLib.cout("freeList    = " + 
+                Integer.toString(superblock.freeList) + "\n");
 
     return true;
   }

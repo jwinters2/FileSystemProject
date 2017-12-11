@@ -13,10 +13,11 @@ public class Superblock
     byte[] blockData = new byte[Disk.blockSize];
     SysLib.cread(0,blockData);
 
+    totalBlocks = diskSize;
+    //SysLib.cout(Integer.toString(FileSystem.bytesToInt(0,blockData)) + "\n");
     // invalid superblock, make a new one
-    if(FileSystem.bytesToInt(0,blockData) == -1)
+    if(FileSystem.bytesToInt(0,blockData) == -1 && false)
     {
-      totalBlocks = diskSize;
 
       // no inodes, but 0 is taken by the superblock, so use 1
       totalInodes = 0;
@@ -24,10 +25,14 @@ public class Superblock
     }
     else
     {
-      totalBlocks = FileSystem.bytesToInt(0,blockData);
+      //totalBlocks = FileSystem.bytesToInt(0,blockData);
       totalInodes = FileSystem.bytesToInt(4,blockData);
       freeList    = FileSystem.bytesToInt(8,blockData);
     }
+
+    SysLib.cout("totalBlocks = " + Integer.toString(totalBlocks) + "\n");
+    SysLib.cout("totalInodes = " + Integer.toString(totalInodes) + "\n");
+    SysLib.cout("freeList    = " + Integer.toString(freeList) + "\n");
   }
 
   public void toDisk()

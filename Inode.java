@@ -28,15 +28,9 @@ public class Inode
   public short direct[] = new short[directSize]; // direct pointers to data
   public short indirect; // indirect pointer
 
-  public static boolean setMaxCount(int i)
+  public static void setMaxCount(int i)
   {
-    // it starts at -1, so if it's already set don't set it again
-    if(maxCount == -1)
-    {
-      maxCount = i;
-      return true;
-    }
-    return false;
+    maxCount = i;
   }
 
   /*

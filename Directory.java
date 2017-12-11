@@ -155,12 +155,14 @@ public class Directory
   {
     if(iexists(filename))
     {
+      SysLib.cout("inode already exists: -1\n");
       return -1;
     }
 
     short Inum = Inode.allocateInode();
     if(Inum == -1)
     {
+      SysLib.cout("ialloc could not allocate node: -1\n");
       return -1;
     }
 
@@ -282,7 +284,7 @@ public class Directory
   public void fromDisk()
   {
     inode = Inode.getInode(0);
-    if(inode.length <= 0)
+    if(inode == null || inode.length <= 0)
     {
       return;
     }
